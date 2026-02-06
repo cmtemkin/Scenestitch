@@ -9,122 +9,162 @@
     {
       "title": "PRD: Formalize rebuild spec in docs/PRD.md",
       "body": "Convert agreed PRD into a repo doc with goals, scope, UX, APIs, data model, phases, and acceptance criteria.",
-      "stage": "Backlog",
-      "labels": ["agent-task"]
+      "stage": "Review",
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "AI provider abstraction layer",
       "body": "Create provider registry + capability interfaces for image, TTS, image-to-video; add OpenAI adapter.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Image adapter: Nana Banana Pro",
       "body": "Implement image generation adapter; config + smoke test.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Image-to-video adapter: Veo 3.1",
       "body": "Implement image-to-video adapter; config + smoke test.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Refactor prompt & continuity services",
       "body": "Extract prompt generation/continuity from server/services/openai.ts into shared provider-agnostic utilities.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "DB-backed render jobs + queue",
       "body": "Replace in-memory job queue with persistent render jobs, retries, and progress.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Asset storage schema + migration",
       "body": "Add assets table + storage keys + checksums; migration and storage helpers.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "New APIs: renders/assets/providers",
       "body": "Create /api/renders, /api/assets, /api/providers with request/response schemas.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "New Project Wizard UX",
       "body": "Single entry flow: format selection, script input, style/provider setup.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Guided Scene Editor UX",
       "body": "Scene list + preview + controls; per-scene edits for prompt, audio, captions.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Render & Export UI",
       "body": "Render progress + preview + export options for 16:9 and 9:16.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Narration pipeline + timestamp alignment",
       "body": "Per-scene or full TTS + audio alignment + SRT export.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Shorts repurpose pipeline",
       "body": "Generate multiple short clips from long-form with pacing heuristics.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Auto-hook + comedy timing engine",
-      "body": "Rewrite first 3–5 seconds + apply beat pauses and emphasis.",
+      "body": "Rewrite first 3\u20135 seconds + apply beat pauses and emphasis.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Caption styles + karaoke timing",
       "body": "Caption templates + word-level emphasis timing.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Persona kits + brand kits",
       "body": "Reusable voice/style/copy rules + brand assets.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "A/B variants & batch export",
       "body": "Generate hook/caption variants and export as batch.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Content calendar + batch generation",
       "body": "Batch creation scheduler and queue.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Cost estimator + budget caps",
       "body": "Per-project estimated cost, warnings, and caps.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     },
     {
       "title": "Integration tests for pipeline",
-      "body": "E2E script → scenes → assets → render tests + recovery tests.",
+      "body": "E2E script \u2192 scenes \u2192 assets \u2192 render tests + recovery tests.",
       "stage": "Backlog",
-      "labels": ["agent-task"]
+      "labels": [
+        "agent-task"
+      ]
     }
   ]
 }
