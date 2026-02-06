@@ -1,0 +1,168 @@
+name: Project Auto-Stage
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  projects: write
+
+jobs:
+  auto-stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-stage issue in Project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const owner = "cmtemkin";
+            const projectNumber = 1;
+            const stageFieldName = "Stage";
+            const defaultStage = "Backlog";
+            const agentLabel = "agent-task";
+
+            const labelMap = {
+              "stage:backlog": "Backlog",
+              "stage:scoping": "Scoping",
+              "stage:build": "Build",
+              "stage:review": "Review",
+              "stage:done": "Done"
+            };
+
+            const issue = context.payload.issue;
+            if (!issue || issue.pull_request) {
+              core.info("Not an issue event. Skipping.");
+              return;
+            }
+
+            const issueNodeId = issue.node_id;
+            const issueState = issue.state;
+            const issueLabels = (issue.labels || []).map(l => (typeof l === "string" ? l : l.name)).filter(Boolean);
+
+            // Query project + issue data
+            const query = `
+              query($login: String!, $number: Int!, $nodeId: ID!) {
+                user(login: $login) {
+                  projectV2(number: $number) {
+                    id
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+                node(id: $nodeId) {
+                  ... on Issue {
+                    id
+                    number
+                    title
+                    state
+                    labels(first: 50) { nodes { name } }
+                    projectItems(first: 50) {
+                      nodes {
+                        id
+                        project { number }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const res = await github.graphql(query, { login: owner, number: projectNumber, nodeId: issueNodeId });
+            const project = res.user?.projectV2;
+            const issueNode = res.node;
+
+            if (!project || !issueNode) {
+              core.info("Project or issue not found.");
+              return;
+            }
+
+            const stageField = project.fields.nodes.find(f => f.name === stageFieldName);
+            if (!stageField) {
+              core.info(`Stage field '${stageFieldName}' not found on project.`);
+              return;
+            }
+
+            const stageOptions = stageField.options.reduce((acc, opt) => {
+              acc[opt.name] = opt.id;
+              return acc;
+            }, {});
+
+            const hasAgentLabel = issueLabels.includes(agentLabel);
+            const existingItem = (issueNode.projectItems?.nodes || []).find(n => n.project?.number === projectNumber);
+
+            if (!hasAgentLabel && !existingItem) {
+              core.info("Issue is not labeled agent-task and not in project. Skipping.");
+              return;
+            }
+
+            // Determine desired stage
+            let desiredStage = defaultStage;
+            if (issueState === "closed") {
+              desiredStage = "Done";
+            } else {
+              for (const label of issueLabels) {
+                if (labelMap[label]) {
+                  desiredStage = labelMap[label];
+                  break;
+                }
+              }
+            }
+
+            const optionId = stageOptions[desiredStage];
+            if (!optionId) {
+              core.info(`No option id for stage '${desiredStage}'.`);
+              return;
+            }
+
+            // Ensure item exists in project
+            let itemId = existingItem?.id;
+            if (!itemId) {
+              const addMutation = `
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }
+              `;
+              const addRes = await github.graphql(addMutation, { projectId: project.id, contentId: issueNode.id });
+              itemId = addRes.addProjectV2ItemById?.item?.id;
+            }
+
+            if (!itemId) {
+              core.info("Unable to add item to project.");
+              return;
+            }
+
+            const updateMutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: { singleSelectOptionId: $optionId }
+                  }
+                ) {
+                  projectV2Item { id }
+                }
+              }
+            `;
+
+            await github.graphql(updateMutation, {
+              projectId: project.id,
+              itemId,
+              fieldId: stageField.id,
+              optionId
+            });
+
+            core.info(`Set Stage='${desiredStage}' for issue #${issueNode.number}`);
