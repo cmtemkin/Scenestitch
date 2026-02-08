@@ -41,6 +41,7 @@ import { registerProviderRoutes } from "./api/providers";
 import { registerRenderRoutes } from "./api/renders";
 import { registerAssetRoutes } from "./api/assets";
 import { registerIntelligenceRoutes } from "./api/intelligence";
+import { registerCaptionRoutes } from "./api/captions";
 import { WebSocketServer, WebSocket } from 'ws';
 import { jobQueue } from './services/jobQueue';
 import { objectStorage, ObjectNotFoundError } from './objectStorage';
@@ -171,6 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerRenderRoutes(app);
   registerAssetRoutes(app);
   registerIntelligenceRoutes(app);
+  registerCaptionRoutes(app);
   try {
     await renderQueue.init();
   } catch (error) {

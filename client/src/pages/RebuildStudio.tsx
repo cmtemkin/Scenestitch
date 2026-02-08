@@ -86,6 +86,15 @@ type ShortsResponse = {
   }>;
 };
 
+type ProviderReadinessResponse = {
+  recommendation: "configured" | "fallback_recommended";
+  readiness: {
+    image: string;
+    tts: string;
+    imageToVideo: string;
+  };
+};
+
 const statusVariant: Record<ProviderStatus, "default" | "secondary" | "outline"> = {
   configured: "default",
   missing_api_key: "secondary",
@@ -147,6 +156,13 @@ const RebuildStudio = () => {
   const assetsQuery = useQuery<ProjectAssetsResponse>({
     queryKey: ["/api/assets", resolvedProjectId],
     queryFn: () => apiRequest<ProjectAssetsResponse>(`/api/assets?projectId=${resolvedProjectId}`),
+    enabled: Boolean(resolvedProjectId),
+    refetchInterval: 7000,
+  });
+
+  const providerReadinessQuery = useQuery<ProviderReadinessResponse>({
+    queryKey: ["/api/providers/readiness", resolvedProjectId],
+    queryFn: () => apiRequest<ProviderReadinessResponse>(`/api/providers/project/${resolvedProjectId}/readiness`),
     enabled: Boolean(resolvedProjectId),
     refetchInterval: 7000,
   });
@@ -759,6 +775,34 @@ const RebuildStudio = () => {
 
         {resolvedProjectId && (
           <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Provider Readiness</CardTitle>
+                <CardDescription>Current project provider availability and fallback recommendation.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {providerReadinessQuery.isLoading && (
+                  <p className="text-sm text-muted-foreground">Checking provider readiness...</p>
+                )}
+                {providerReadinessQuery.data && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Recommendation: <span className="font-medium text-foreground">{providerReadinessQuery.data.recommendation}</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Image: {providerReadinessQuery.data.readiness.image}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Narration: {providerReadinessQuery.data.readiness.tts}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Image-to-Video: {providerReadinessQuery.data.readiness.imageToVideo}
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Renders</CardTitle>

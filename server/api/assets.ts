@@ -59,6 +59,23 @@ export function registerAssetRoutes(app: Express) {
         }
       }
 
+      if (scenes.length > 0) {
+        assets.push({
+          id: `caption-srt-${projectId}`,
+          projectId,
+          kind: "caption",
+          url: `/api/captions/${projectId}.srt`,
+          metadata: { format: "srt" },
+        });
+        assets.push({
+          id: `caption-vtt-${projectId}`,
+          projectId,
+          kind: "caption",
+          url: `/api/captions/${projectId}.vtt`,
+          metadata: { format: "vtt" },
+        });
+      }
+
       if (script.audioTTSId) {
         const audio = await storage.getAudioTTS(script.audioTTSId);
         if (audio?.audioUrl) {
