@@ -48,6 +48,7 @@ import { uploadSceneImage } from './services/robustStorage';
 import { ElevenLabsService } from './services/elevenLabsService';
 import { wav2lipService } from './services/wav2lipService';
 import { animationAssemblyService } from './services/animationAssemblyService';
+import { renderQueue } from './services/renderQueue';
 
 // Initialize ElevenLabs service
 const elevenLabsService = new ElevenLabsService();
@@ -170,6 +171,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerRenderRoutes(app);
   registerAssetRoutes(app);
   registerIntelligenceRoutes(app);
+  try {
+    await renderQueue.init();
+  } catch (error) {
+    console.error("[render-queue] Failed to initialize queue recovery:", error);
+  }
   
   // Health check endpoint for storage status
   app.get("/api/health/storage", async (req: Request, res: Response) => {
@@ -3484,9 +3490,10 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
         });
       }
 
-      // Generate video using basic video generator
-      const { BasicVideoGenerator } = await import('./services/basicVideoGenerator');
-      const jobId = await BasicVideoGenerator.generateVideo(projectId);
+      const jobId = await renderQueue.enqueue(projectId, {
+        ...(settings || {}),
+        requestedFrom: "legacy-generate-video-endpoint",
+      });
       
       res.json({
         jobId,

@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { createRenderSchema, type VideoJob } from "@shared/schema";
 import { storage } from "../storage";
-import { BasicVideoGenerator } from "../services/basicVideoGenerator";
+import { renderQueue } from "../services/renderQueue";
 
 function mapVideoJobToRender(job: VideoJob) {
   return {
@@ -81,14 +81,11 @@ export function registerRenderRoutes(app: Express) {
         });
       }
 
-      const jobId = await BasicVideoGenerator.generateVideo(data.projectId);
-      await storage.updateVideoJob(jobId, {
-        settings: {
-          ...(data.settings ?? {}),
-          format: data.format,
-          contentType: data.contentType,
-          includeCaptions: data.includeCaptions,
-        },
+      const jobId = await renderQueue.enqueue(data.projectId, {
+        ...(data.settings ?? {}),
+        format: data.format,
+        contentType: data.contentType,
+        includeCaptions: data.includeCaptions,
       });
 
       const createdJob = await storage.getVideoJob(jobId);

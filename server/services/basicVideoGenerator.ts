@@ -6,17 +6,26 @@ import { storage } from '../storage';
 const execAsync = promisify(exec);
 
 export class BasicVideoGenerator {
-  static async generateVideo(projectId: number): Promise<string> {
-    const jobId = `basic_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  static async generateVideo(projectId: number, existingJobId?: string): Promise<string> {
+    const jobId = existingJobId ?? `basic_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
-      await storage.createVideoJob({
-        id: jobId,
-        projectId,
-        status: 'processing',
-        progress: 0,
-        settings: { type: 'basic', quality: 'standard' }
-      });
+      if (!existingJobId) {
+        await storage.createVideoJob({
+          id: jobId,
+          projectId,
+          status: 'processing',
+          progress: 0,
+          settings: { type: 'basic', quality: 'standard' }
+        });
+      } else {
+        await storage.updateVideoJob(jobId, {
+          projectId,
+          status: 'processing',
+          progress: 0,
+          error: null
+        });
+      }
 
       console.log(`Starting basic video generation for project ${projectId}`);
       await storage.updateVideoJob(jobId, { progress: 10 });
