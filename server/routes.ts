@@ -2172,6 +2172,12 @@ Enhanced Script:`;
       // Get project info including reference image
       let projectModelSettings = null;
       let referenceImageUrl: string | undefined = req.body.referenceImageUrl;
+      let providerConfig: any = {
+        image: "openai",
+        tts: "openai",
+        imageToVideo: "sora-2",
+        enableFallbacks: true,
+      };
       
       if (scene.scriptId !== null) {
         try {
@@ -2179,6 +2185,13 @@ Enhanced Script:`;
           if (script) {
             if (script.modelSettings) {
               projectModelSettings = script.modelSettings;
+              const modelSettings = script.modelSettings as any;
+              if (modelSettings?.providerConfig) {
+                providerConfig = {
+                  ...providerConfig,
+                  ...modelSettings.providerConfig,
+                };
+              }
             }
             // Use project's reference image if not provided in request
             if (!referenceImageUrl && script.referenceImageUrl) {
@@ -2199,7 +2212,7 @@ Enhanced Script:`;
       let imageUrl: string | undefined;
       
       // If we have a reference image, use images.edit for character consistency
-      if (referenceImageUrl) {
+      if (referenceImageUrl && providerConfig.image === "openai") {
         console.log(`[SINGLE SCENE] Using images.edit with reference image for character consistency`);
         
         try {
@@ -2281,21 +2294,25 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
       
       // Standard generation (no reference image or edit failed)
       if (!imageUrl) {
-        const sceneWithImage = await generateDalleImages(
-          [{
-            content: scene.scriptExcerpt || "",
-            dallePrompt: scene.dallePrompt,
-            title: scene.title || "",
-            id: scene.id,
-            sceneNumber: scene.sceneNumber,
-            scriptId: scene.scriptId
-          }],
-          req.body.style || "",
-          false,
+        const { generateImagesWithProvider } = await import("./providers/engine");
+        const sceneWithImage = await generateImagesWithProvider(providerConfig, {
+          scriptId: scene.scriptId || 0,
+          style: req.body.style || "cinematic",
+          customStylePrompt: req.body.customStylePrompt,
+          maintainContinuity: false,
           referenceImageUrl,
-          req.body.customStylePrompt,
-          projectModelSettings
-        );
+          modelSettings: projectModelSettings,
+          scenes: [
+            {
+              id: scene.id,
+              sceneNumber: scene.sceneNumber,
+              scriptId: scene.scriptId || undefined,
+              title: scene.title || "",
+              content: scene.scriptExcerpt || "",
+              dallePrompt: scene.dallePrompt,
+            },
+          ],
+        });
         imageUrl = sceneWithImage[0]?.imageUrl;
       }
       

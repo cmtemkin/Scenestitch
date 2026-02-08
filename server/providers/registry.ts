@@ -76,8 +76,8 @@ const CATALOG_PROVIDERS: ProviderDescriptor[] = [
     id: "veo-3.1",
     label: "Veo 3.1 (Image-to-Video)",
     kind: "image_to_video",
-    requiredEnvVars: ["VEO_API_KEY"],
-    status: resolveStatus(["VEO_API_KEY"], "planned"),
+    requiredEnvVars: ["VEO_API_KEY", "VEO_API_URL"],
+    status: resolveStatus(["VEO_API_KEY", "VEO_API_URL"], "planned"),
     capabilities: [
       { key: "video.image_to_video", description: "Alternative image-to-video provider" },
     ],

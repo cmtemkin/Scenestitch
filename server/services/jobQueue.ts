@@ -1,7 +1,10 @@
 import { EventEmitter } from 'events';
-import { generateDalleImages, generateImagesWithReferences, CharacterDNA, generateSoraVideos } from './openai';
+import { generateImagesWithReferences, CharacterDNA } from './openai';
 import { storage } from '../storage';
 import { getModelConfig } from '../config';
+import { projectProviderConfigSchema, type ProjectProviderConfig } from '@shared/schema';
+import { getDefaultProviderConfig } from '../providers/registry';
+import { generateImagesWithProvider, generateImageToVideoWithProvider } from '../providers/engine';
 
 export interface SoraSceneInput {
   id: number;
@@ -269,6 +272,21 @@ class JobQueue extends EventEmitter {
     });
   }
 
+  private async getProviderConfigForScript(scriptId: number): Promise<ProjectProviderConfig> {
+    try {
+      const script = await storage.getScript(scriptId);
+      const providerConfig = (script?.modelSettings as any)?.providerConfig;
+      const parsed = projectProviderConfigSchema.safeParse(providerConfig);
+      if (parsed.success) {
+        return parsed.data;
+      }
+      return getDefaultProviderConfig();
+    } catch (error) {
+      console.warn(`Failed to resolve provider config for script ${scriptId}, using defaults`, error);
+      return getDefaultProviderConfig();
+    }
+  }
+
   private async processQueue() {
     const pendingJobs = Array.from(this.jobs.values())
       .filter(job => job.status === 'pending' && !this.processingJobs.has(job.id))
@@ -309,6 +327,9 @@ class JobQueue extends EventEmitter {
       this.emit('jobUpdated', job);
 
       console.log(`Starting image generation job ${job.id} for script ${job.scriptId}`);
+      const script = await storage.getScript(job.scriptId);
+      const projectModelSettings = script?.modelSettings || getModelConfig();
+      const providerConfig = await this.getProviderConfigForScript(job.scriptId);
       
       // Process images in parallel batches of 3 to avoid overwhelming the API
       const batchSize = 3;
@@ -333,43 +354,24 @@ class JobQueue extends EventEmitter {
           
           try {
             console.log(`Generating image for scene ${scene.id} (job ${job.id})`);
-            
-            // Get project-specific model settings if available
-            let projectModelSettings = null;
-            try {
-              const script = await storage.getScript(job.scriptId);
-              console.log(`Retrieved script for job ${job.id}:`, {
-                id: script?.id,
-                title: script?.title,
-                hasModelSettings: !!script?.modelSettings,
-                modelSettings: script?.modelSettings
-              });
-              
-              if (script && script.modelSettings) {
-                projectModelSettings = script.modelSettings;
-                console.log("Using project-specific model settings for job:", JSON.stringify(projectModelSettings));
-              } else {
-                console.log("No project-specific model settings found, using global settings");
-              }
-            } catch (error) {
-              console.log("Error retrieving project model settings:", error);
-            }
-            
-            // Use global config if no project settings
-            if (!projectModelSettings) {
-              projectModelSettings = getModelConfig();
-              console.log("Using global model settings:", JSON.stringify(projectModelSettings));
-            }
-            
-            // Generate image for individual scene
-            const updatedScenes = await generateDalleImages(
-              [scene],
-              job.style,
-              job.maintainContinuity,
-              job.customStylePrompt,
-              job.referenceImageUrl,
-              projectModelSettings
-            );
+            const updatedScenes = await generateImagesWithProvider(providerConfig, {
+              scriptId: job.scriptId,
+              style: job.style,
+              customStylePrompt: job.customStylePrompt,
+              maintainContinuity: job.maintainContinuity,
+              referenceImageUrl: job.referenceImageUrl,
+              modelSettings: projectModelSettings,
+              scenes: [
+                {
+                  id: scene.id,
+                  sceneNumber: scene.sceneNumber,
+                  scriptId: job.scriptId,
+                  title: scene.title,
+                  content: scene.content || scene.scriptExcerpt || '',
+                  dallePrompt: scene.dallePrompt,
+                },
+              ],
+            });
             
             if (updatedScenes[0]?.imageUrl) {
               // Update scene in database
@@ -439,31 +441,52 @@ class JobQueue extends EventEmitter {
       console.log(`Starting character-aware image generation job ${job.id} for script ${job.scriptId}`);
       console.log(`Characters: ${job.characters.length}, Scenes: ${job.scenes.length}`);
 
-      // Get project-specific model settings
-      let projectModelSettings = null;
-      try {
-        const script = await storage.getScript(job.scriptId);
-        if (script?.modelSettings) {
-          projectModelSettings = script.modelSettings;
+      const script = await storage.getScript(job.scriptId);
+      const projectModelSettings = script?.modelSettings || getModelConfig();
+      const providerConfig = await this.getProviderConfigForScript(job.scriptId);
+
+      let generatedImages: Array<{ sceneNumber: number; imageUrl: string }>;
+
+      if (providerConfig.image === 'openai') {
+        // Character-aware consistency currently relies on OpenAI image-edit flow.
+        generatedImages = await generateImagesWithReferences(
+          job.scenes,
+          job.characters,
+          job.sceneCharacterMap,
+          job.style,
+          job.customStylePrompt,
+          projectModelSettings,
+          job.referenceImageUrl
+        );
+      } else {
+        console.log(`[providers] Image provider ${providerConfig.image} selected; using standard scene generation without character-DNA blending`);
+        generatedImages = [];
+        for (const scene of job.scenes) {
+          const generated = await generateImagesWithProvider(providerConfig, {
+            scriptId: job.scriptId,
+            style: job.style,
+            customStylePrompt: job.customStylePrompt,
+            maintainContinuity: true,
+            referenceImageUrl: job.referenceImageUrl,
+            modelSettings: projectModelSettings,
+            scenes: [
+              {
+                id: scene.id,
+                sceneNumber: scene.sceneNumber,
+                scriptId: job.scriptId,
+                title: scene.title,
+                content: scene.content || scene.scriptExcerpt || '',
+                dallePrompt: scene.dallePrompt,
+              },
+            ],
+          });
+
+          generatedImages.push({
+            sceneNumber: scene.sceneNumber,
+            imageUrl: generated[0]?.imageUrl || '',
+          });
         }
-      } catch (error) {
-        console.log("Error retrieving project model settings:", error);
       }
-
-      if (!projectModelSettings) {
-        projectModelSettings = getModelConfig();
-      }
-
-      // Use generateImagesWithReferences which handles sequential generation with character DNA
-      const generatedImages = await generateImagesWithReferences(
-        job.scenes,
-        job.characters,
-        job.sceneCharacterMap,
-        job.style,
-        job.customStylePrompt,
-        projectModelSettings,
-        job.referenceImageUrl
-      );
 
       // Update scenes in database and track progress
       for (const generated of generatedImages) {
@@ -517,24 +540,19 @@ class JobQueue extends EventEmitter {
       console.log(`Starting Sora video generation job ${job.id} for script ${job.scriptId}`);
       console.log(`Processing ${job.scenes.length} scenes with Sora prompts`);
 
-      // Generate videos using the Sora service
-      const results = await generateSoraVideos(
-        job.scenes.map(scene => ({
+      const providerConfig = await this.getProviderConfigForScript(job.scriptId);
+      const results = await generateImageToVideoWithProvider(providerConfig, {
+        scenes: job.scenes.map(scene => ({
           id: scene.id,
           sceneNumber: scene.sceneNumber,
           soraPrompt: scene.soraPrompt,
           soraClipLength: scene.soraClipLength,
           imageUrl: scene.imageUrl
         })),
-        (completed, total) => {
-          job.progress.completed = completed;
-          job.progress.total = total;
-          this.emit('jobProgress', job, null, null);
-          this.emit('jobUpdated', job);
-        }
-      );
+      });
 
       // Update scenes with video URLs
+      let processedSoFar = 0;
       for (const result of results) {
         if (result.status === 'completed' && result.videoUrl) {
           await storage.updateScene(result.sceneId, {
@@ -542,6 +560,11 @@ class JobQueue extends EventEmitter {
           });
           console.log(`Updated scene ${result.sceneId} with video: ${result.videoUrl}`);
         }
+        processedSoFar++;
+        job.progress.completed = processedSoFar;
+        job.progress.total = job.scenes.length;
+        this.emit('jobProgress', job, null, null);
+        this.emit('jobUpdated', job);
       }
 
       const completedCount = results.filter(r => r.status === 'completed').length;
