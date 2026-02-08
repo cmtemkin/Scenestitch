@@ -42,6 +42,7 @@ import { registerRenderRoutes } from "./api/renders";
 import { registerAssetRoutes } from "./api/assets";
 import { registerIntelligenceRoutes } from "./api/intelligence";
 import { registerCaptionRoutes } from "./api/captions";
+import { registerKitRoutes } from "./api/kits";
 import { WebSocketServer, WebSocket } from 'ws';
 import { jobQueue } from './services/jobQueue';
 import { objectStorage, ObjectNotFoundError } from './objectStorage';
@@ -173,6 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAssetRoutes(app);
   registerIntelligenceRoutes(app);
   registerCaptionRoutes(app);
+  registerKitRoutes(app);
   try {
     await renderQueue.init();
   } catch (error) {
@@ -3119,6 +3121,8 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
         musicAudioFilePath,
         animationSettings,
         providers,
+        personaKitId,
+        brandKitId,
       } = req.body;
       
       if (!title || !content || !style) {
@@ -3154,6 +3158,8 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
         musicAudioFilePath: isMusicVideo ? musicAudioFilePath : undefined,
         animationSettings: isAnimation ? animationSettings : undefined,
         providerConfig: providers,
+        personaKitId,
+        brandKitId,
       });
 
       const workflow = await workflowOrchestrator.getWorkflow(workflowId);

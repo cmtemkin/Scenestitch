@@ -581,6 +581,74 @@ export const generateVideoSchema = z.object({
 
 export type GenerateVideoRequest = z.infer<typeof generateVideoSchema>;
 
+// Persona and brand kits (reusable creator presets)
+export const personaKits = pgTable("persona_kits", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  defaultVoice: text("default_voice"),
+  defaultStyle: text("default_style"),
+  tone: text("tone"),
+  humorLevel: integer("humor_level").default(50),
+  hookStyle: text("hook_style"),
+  promptDirectives: text("prompt_directives"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const brandKits = pgTable("brand_kits", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  primaryColor: text("primary_color"),
+  secondaryColor: text("secondary_color"),
+  accentColor: text("accent_color"),
+  fontFamily: text("font_family"),
+  logoUrl: text("logo_url"),
+  introText: text("intro_text"),
+  outroText: text("outro_text"),
+  ctaText: text("cta_text"),
+  captionPreset: text("caption_preset"),
+  promptDirectives: text("prompt_directives"),
+  watermarkEnabled: boolean("watermark_enabled").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPersonaKitSchema = createInsertSchema(personaKits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePersonaKitSchema = insertPersonaKitSchema.partial();
+
+export type InsertPersonaKit = z.infer<typeof insertPersonaKitSchema>;
+export type UpdatePersonaKit = z.infer<typeof updatePersonaKitSchema>;
+export type PersonaKit = typeof personaKits.$inferSelect;
+
+export const insertBrandKitSchema = createInsertSchema(brandKits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateBrandKitSchema = insertBrandKitSchema.partial();
+
+export type InsertBrandKit = z.infer<typeof insertBrandKitSchema>;
+export type UpdateBrandKit = z.infer<typeof updateBrandKitSchema>;
+export type BrandKit = typeof brandKits.$inferSelect;
+
+export const applyProjectKitsSchema = z.object({
+  projectId: z.number().int().positive(),
+  personaKitId: z.number().int().positive().nullable().optional(),
+  brandKitId: z.number().int().positive().nullable().optional(),
+});
+
+export type ApplyProjectKitsRequest = z.infer<typeof applyProjectKitsSchema>;
+
 // Provider-agnostic configuration schemas (Rebuild v1)
 export const imageProviderSchema = z.enum(["openai", "nanabanana-pro"]);
 export const ttsProviderSchema = z.enum(["openai", "elevenlabs"]);

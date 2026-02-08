@@ -5,6 +5,8 @@ import {
   audioTTS, type AudioTTS, type InsertAudioTTS, type UpdateAudioTTS,
   videoJobs, type VideoJob, type InsertVideoJob, type UpdateVideoJob,
   globalConfig, type GlobalConfig, type InsertGlobalConfig,
+  personaKits, type PersonaKit, type InsertPersonaKit, type UpdatePersonaKit,
+  brandKits, type BrandKit, type InsertBrandKit, type UpdateBrandKit,
   animationCharacters, type AnimationCharacter, type InsertAnimationCharacter,
   animationFrames, type AnimationFrame, type InsertAnimationFrame,
   animationScenes, type AnimationScene, type InsertAnimationScene
@@ -58,6 +60,18 @@ export interface IStorage {
   setGlobalConfig(key: string, value: any): Promise<GlobalConfig>;
   deleteGlobalConfig(key: string): Promise<boolean>;
   deleteVideoJob(id: string): Promise<boolean>;
+
+  // Persona/brand kit methods
+  getPersonaKit(id: number): Promise<PersonaKit | undefined>;
+  getPersonaKits(): Promise<PersonaKit[]>;
+  createPersonaKit(kit: InsertPersonaKit): Promise<PersonaKit>;
+  updatePersonaKit(id: number, kit: UpdatePersonaKit): Promise<PersonaKit | undefined>;
+  deletePersonaKit(id: number): Promise<boolean>;
+  getBrandKit(id: number): Promise<BrandKit | undefined>;
+  getBrandKits(): Promise<BrandKit[]>;
+  createBrandKit(kit: InsertBrandKit): Promise<BrandKit>;
+  updateBrandKit(id: number, kit: UpdateBrandKit): Promise<BrandKit | undefined>;
+  deleteBrandKit(id: number): Promise<boolean>;
   
   // Helper methods for video generation
   get(id: number): Promise<Script | undefined>;
@@ -97,11 +111,15 @@ export class MemStorage implements IStorage {
   private audioTTS: Map<number, AudioTTS>;
   private videoJobs: Map<string, VideoJob>;
   private globalConfigs: Map<string, GlobalConfig>;
+  private personaKits: Map<number, PersonaKit>;
+  private brandKits: Map<number, BrandKit>;
   private userCurrentId: number;
   private scriptCurrentId: number;
   private sceneCurrentId: number;
   private audioTTSCurrentId: number;
   private globalConfigCurrentId: number;
+  private personaKitCurrentId: number;
+  private brandKitCurrentId: number;
 
   constructor() {
     this.users = new Map();
@@ -110,11 +128,15 @@ export class MemStorage implements IStorage {
     this.audioTTS = new Map();
     this.videoJobs = new Map();
     this.globalConfigs = new Map();
+    this.personaKits = new Map();
+    this.brandKits = new Map();
     this.userCurrentId = 1;
     this.scriptCurrentId = 1;
     this.sceneCurrentId = 1;
     this.audioTTSCurrentId = 1;
     this.globalConfigCurrentId = 1;
+    this.personaKitCurrentId = 1;
+    this.brandKitCurrentId = 1;
   }
 
   // User methods
@@ -396,6 +418,100 @@ export class MemStorage implements IStorage {
 
   async deleteGlobalConfig(key: string): Promise<boolean> {
     return this.globalConfigs.delete(key);
+  }
+
+  // Persona/brand kit methods
+  async getPersonaKit(id: number): Promise<PersonaKit | undefined> {
+    return this.personaKits.get(id);
+  }
+
+  async getPersonaKits(): Promise<PersonaKit[]> {
+    return Array.from(this.personaKits.values()).sort((a, b) => b.id - a.id);
+  }
+
+  async createPersonaKit(kit: InsertPersonaKit): Promise<PersonaKit> {
+    const createdAt = new Date();
+    const created: PersonaKit = {
+      id: this.personaKitCurrentId++,
+      name: kit.name,
+      description: kit.description ?? null,
+      defaultVoice: kit.defaultVoice ?? null,
+      defaultStyle: kit.defaultStyle ?? null,
+      tone: kit.tone ?? null,
+      humorLevel: kit.humorLevel ?? 50,
+      hookStyle: kit.hookStyle ?? null,
+      promptDirectives: kit.promptDirectives ?? null,
+      isActive: kit.isActive ?? true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    this.personaKits.set(created.id, created);
+    return created;
+  }
+
+  async updatePersonaKit(id: number, kit: UpdatePersonaKit): Promise<PersonaKit | undefined> {
+    const current = this.personaKits.get(id);
+    if (!current) return undefined;
+    const updated: PersonaKit = {
+      ...current,
+      ...kit,
+      updatedAt: new Date(),
+    };
+    this.personaKits.set(id, updated);
+    return updated;
+  }
+
+  async deletePersonaKit(id: number): Promise<boolean> {
+    return this.personaKits.delete(id);
+  }
+
+  async getBrandKit(id: number): Promise<BrandKit | undefined> {
+    return this.brandKits.get(id);
+  }
+
+  async getBrandKits(): Promise<BrandKit[]> {
+    return Array.from(this.brandKits.values()).sort((a, b) => b.id - a.id);
+  }
+
+  async createBrandKit(kit: InsertBrandKit): Promise<BrandKit> {
+    const createdAt = new Date();
+    const created: BrandKit = {
+      id: this.brandKitCurrentId++,
+      name: kit.name,
+      description: kit.description ?? null,
+      primaryColor: kit.primaryColor ?? null,
+      secondaryColor: kit.secondaryColor ?? null,
+      accentColor: kit.accentColor ?? null,
+      fontFamily: kit.fontFamily ?? null,
+      logoUrl: kit.logoUrl ?? null,
+      introText: kit.introText ?? null,
+      outroText: kit.outroText ?? null,
+      ctaText: kit.ctaText ?? null,
+      captionPreset: kit.captionPreset ?? null,
+      promptDirectives: kit.promptDirectives ?? null,
+      watermarkEnabled: kit.watermarkEnabled ?? false,
+      isActive: kit.isActive ?? true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    this.brandKits.set(created.id, created);
+    return created;
+  }
+
+  async updateBrandKit(id: number, kit: UpdateBrandKit): Promise<BrandKit | undefined> {
+    const current = this.brandKits.get(id);
+    if (!current) return undefined;
+    const updated: BrandKit = {
+      ...current,
+      ...kit,
+      updatedAt: new Date(),
+    };
+    this.brandKits.set(id, updated);
+    return updated;
+  }
+
+  async deleteBrandKit(id: number): Promise<boolean> {
+    return this.brandKits.delete(id);
   }
 
   // Helper methods for video generation
@@ -749,6 +865,69 @@ export class DatabaseStorage implements IStorage {
       .where(eq(globalConfig.key, key))
       .returning();
     
+    return !!deleted;
+  }
+
+  // Persona/brand kit methods
+  async getPersonaKit(id: number): Promise<PersonaKit | undefined> {
+    const [kit] = await db.select().from(personaKits).where(eq(personaKits.id, id));
+    return kit;
+  }
+
+  async getPersonaKits(): Promise<PersonaKit[]> {
+    return await db.select().from(personaKits).orderBy(desc(personaKits.createdAt));
+  }
+
+  async createPersonaKit(kit: InsertPersonaKit): Promise<PersonaKit> {
+    const [created] = await db.insert(personaKits).values(kit).returning();
+    return created;
+  }
+
+  async updatePersonaKit(id: number, kit: UpdatePersonaKit): Promise<PersonaKit | undefined> {
+    const [updated] = await db
+      .update(personaKits)
+      .set({ ...kit, updatedAt: new Date() })
+      .where(eq(personaKits.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePersonaKit(id: number): Promise<boolean> {
+    const [deleted] = await db
+      .delete(personaKits)
+      .where(eq(personaKits.id, id))
+      .returning();
+    return !!deleted;
+  }
+
+  async getBrandKit(id: number): Promise<BrandKit | undefined> {
+    const [kit] = await db.select().from(brandKits).where(eq(brandKits.id, id));
+    return kit;
+  }
+
+  async getBrandKits(): Promise<BrandKit[]> {
+    return await db.select().from(brandKits).orderBy(desc(brandKits.createdAt));
+  }
+
+  async createBrandKit(kit: InsertBrandKit): Promise<BrandKit> {
+    const [created] = await db.insert(brandKits).values(kit).returning();
+    return created;
+  }
+
+  async updateBrandKit(id: number, kit: UpdateBrandKit): Promise<BrandKit | undefined> {
+    const [updated] = await db
+      .update(brandKits)
+      .set({ ...kit, updatedAt: new Date() })
+      .where(eq(brandKits.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBrandKit(id: number): Promise<boolean> {
+    const [deleted] = await db
+      .delete(brandKits)
+      .where(eq(brandKits.id, id))
+      .returning();
     return !!deleted;
   }
 

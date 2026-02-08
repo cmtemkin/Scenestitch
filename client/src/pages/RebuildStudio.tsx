@@ -90,6 +90,37 @@ type ShortRenderQueueResponse = {
   jobs: Array<{ jobId: string; clipNumber: number; sceneRange: [number, number] }>;
 };
 
+type PersonaKit = {
+  id: number;
+  name: string;
+  description?: string | null;
+  defaultVoice?: string | null;
+  defaultStyle?: string | null;
+  tone?: string | null;
+  humorLevel?: number | null;
+  hookStyle?: string | null;
+  promptDirectives?: string | null;
+  isActive: boolean;
+};
+
+type BrandKit = {
+  id: number;
+  name: string;
+  description?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  fontFamily?: string | null;
+  logoUrl?: string | null;
+  introText?: string | null;
+  outroText?: string | null;
+  ctaText?: string | null;
+  captionPreset?: string | null;
+  promptDirectives?: string | null;
+  watermarkEnabled: boolean;
+  isActive: boolean;
+};
+
 type ProviderReadinessResponse = {
   recommendation: "configured" | "fallback_recommended";
   readiness: {
@@ -115,6 +146,8 @@ const RebuildStudio = () => {
   const [selectedImageProvider, setSelectedImageProvider] = useState("openai");
   const [selectedTtsProvider, setSelectedTtsProvider] = useState("openai");
   const [selectedImageToVideoProvider, setSelectedImageToVideoProvider] = useState("sora-2");
+  const [selectedPersonaKitId, setSelectedPersonaKitId] = useState("");
+  const [selectedBrandKitId, setSelectedBrandKitId] = useState("");
   const [workflowId, setWorkflowId] = useState("");
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [manualProjectId, setManualProjectId] = useState("");
@@ -127,6 +160,14 @@ const RebuildStudio = () => {
 
   const providersQuery = useQuery<ProviderResponse>({
     queryKey: ["/api/providers"],
+  });
+
+  const personaKitsQuery = useQuery<PersonaKit[]>({
+    queryKey: ["/api/kits/personas"],
+  });
+
+  const brandKitsQuery = useQuery<BrandKit[]>({
+    queryKey: ["/api/kits/brands"],
   });
 
   const workflowStatusQuery = useQuery<WorkflowResponse>({
@@ -189,6 +230,8 @@ const RebuildStudio = () => {
             imageToVideo: selectedImageToVideoProvider,
             enableFallbacks: true,
           },
+          personaKitId: selectedPersonaKitId ? Number(selectedPersonaKitId) : undefined,
+          brandKitId: selectedBrandKitId ? Number(selectedBrandKitId) : undefined,
         }),
       }),
     onSuccess: (result) => {
@@ -303,6 +346,60 @@ const RebuildStudio = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/renders", resolvedProjectId] });
       queryClient.invalidateQueries({ queryKey: ["/api/assets", resolvedProjectId] });
+    },
+  });
+
+  const savePersonaKitMutation = useMutation({
+    mutationFn: async () =>
+      apiRequest<PersonaKit>("/api/kits/personas", {
+        method: "POST",
+        body: JSON.stringify({
+          name: `${title} Persona`,
+          description: `Generated from project kickoff context for ${projectType}.`,
+          defaultVoice: "alloy",
+          defaultStyle: style,
+          tone: projectType === "sora" ? "playful, high-energy, comedic" : "clear, expert, concise",
+          humorLevel: projectType === "sora" ? 80 : 35,
+          hookStyle: projectType === "sora" ? "pattern-interrupt comedy" : "problem-solution authority",
+          promptDirectives:
+            projectType === "sora"
+              ? "Lead with a bold joke or tension break in the first two lines."
+              : "Lead with a sharp problem statement and clear takeaway.",
+          isActive: true,
+        }),
+      }),
+    onSuccess: (kit) => {
+      setSelectedPersonaKitId(String(kit.id));
+      queryClient.invalidateQueries({ queryKey: ["/api/kits/personas"] });
+    },
+  });
+
+  const saveBrandKitMutation = useMutation({
+    mutationFn: async () =>
+      apiRequest<BrandKit>("/api/kits/brands", {
+        method: "POST",
+        body: JSON.stringify({
+          name: `${title} Brand`,
+          description: `Generated from project kickoff context for ${projectType}.`,
+          primaryColor: projectType === "sora" ? "#F97316" : "#2563EB",
+          secondaryColor: "#111827",
+          accentColor: "#FACC15",
+          fontFamily: projectType === "sora" ? "Montserrat" : "Merriweather",
+          captionPreset: projectType === "sora" ? "impact-pop" : "clean-educational",
+          introText: projectType === "sora" ? "Wait for it..." : "Quick explainer",
+          outroText: projectType === "sora" ? "Follow for more skits" : "Follow for more explainers",
+          ctaText: "Subscribe for the next one",
+          promptDirectives:
+            projectType === "sora"
+              ? "Favor kinetic framing, punchy overlays, and fast visual progression."
+              : "Favor clarity, clean composition, and topic-led visual framing.",
+          watermarkEnabled: false,
+          isActive: true,
+        }),
+      }),
+    onSuccess: (kit) => {
+      setSelectedBrandKitId(String(kit.id));
+      queryClient.invalidateQueries({ queryKey: ["/api/kits/brands"] });
     },
   });
 
@@ -502,10 +599,72 @@ const RebuildStudio = () => {
                     </select>
                   </div>
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="personaKit">Persona Kit</Label>
+                    <select
+                      id="personaKit"
+                      value={selectedPersonaKitId}
+                      onChange={(e) => setSelectedPersonaKitId(e.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">None</option>
+                      {(personaKitsQuery.data ?? []).map((kit) => (
+                        <option key={kit.id} value={kit.id}>
+                          {kit.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="brandKit">Brand Kit</Label>
+                    <select
+                      id="brandKit"
+                      value={selectedBrandKitId}
+                      onChange={(e) => setSelectedBrandKitId(e.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">None</option>
+                      {(brandKitsQuery.data ?? []).map((kit) => (
+                        <option key={kit.id} value={kit.id}>
+                          {kit.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => savePersonaKitMutation.mutate()}
+                    disabled={savePersonaKitMutation.isPending}
+                  >
+                    {savePersonaKitMutation.isPending ? "Saving Persona..." : "Save Persona Kit"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => saveBrandKitMutation.mutate()}
+                    disabled={saveBrandKitMutation.isPending}
+                  >
+                    {saveBrandKitMutation.isPending ? "Saving Brand..." : "Save Brand Kit"}
+                  </Button>
+                </div>
                 <Button type="submit" disabled={createWorkflowMutation.isPending}>
                   {createWorkflowMutation.isPending ? "Starting..." : "Start Workflow"}
                 </Button>
               </form>
+              {savePersonaKitMutation.data?.id && (
+                <p className="mt-3 text-sm text-primary">
+                  Persona kit saved: <code>{savePersonaKitMutation.data.name}</code>
+                </p>
+              )}
+              {saveBrandKitMutation.data?.id && (
+                <p className="mt-1 text-sm text-primary">
+                  Brand kit saved: <code>{saveBrandKitMutation.data.name}</code>
+                </p>
+              )}
               {createWorkflowMutation.data?.workflowId && (
                 <p className="mt-3 text-sm text-primary">
                   Workflow started: <code>{createWorkflowMutation.data.workflowId}</code>

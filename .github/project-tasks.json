@@ -17,7 +17,7 @@
     {
       "title": "AI provider abstraction layer",
       "body": "Create provider registry + capability interfaces for image, TTS, image-to-video; add OpenAI adapter.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]
@@ -25,7 +25,7 @@
     {
       "title": "Image adapter: Nana Banana Pro",
       "body": "Implement image generation adapter; config + smoke test.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -33,7 +33,7 @@
     {
       "title": "Image-to-video adapter: Veo 3.1",
       "body": "Implement image-to-video adapter; config + smoke test.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -49,7 +49,7 @@
     {
       "title": "DB-backed render jobs + queue",
       "body": "Replace in-memory job queue with persistent render jobs, retries, and progress.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]
@@ -65,7 +65,7 @@
     {
       "title": "New APIs: renders/assets/providers",
       "body": "Create /api/renders, /api/assets, /api/providers with request/response schemas.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]
@@ -73,7 +73,7 @@
     {
       "title": "New Project Wizard UX",
       "body": "Single entry flow: format selection, script input, style/provider setup.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -81,7 +81,7 @@
     {
       "title": "Guided Scene Editor UX",
       "body": "Scene list + preview + controls; per-scene edits for prompt, audio, captions.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -89,7 +89,7 @@
     {
       "title": "Render & Export UI",
       "body": "Render progress + preview + export options for 16:9 and 9:16.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -97,7 +97,7 @@
     {
       "title": "Narration pipeline + timestamp alignment",
       "body": "Per-scene or full TTS + audio alignment + SRT export.",
-      "stage": "Backlog",
+      "stage": "Build",
       "labels": [
         "agent-task"
       ]
@@ -105,7 +105,7 @@
     {
       "title": "Shorts repurpose pipeline",
       "body": "Generate multiple short clips from long-form with pacing heuristics.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]
@@ -113,7 +113,7 @@
     {
       "title": "Auto-hook + comedy timing engine",
       "body": "Rewrite first 3\u20135 seconds + apply beat pauses and emphasis.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]
@@ -129,7 +129,7 @@
     {
       "title": "Persona kits + brand kits",
       "body": "Reusable voice/style/copy rules + brand assets.",
-      "stage": "Backlog",
+      "stage": "Review",
       "labels": [
         "agent-task"
       ]

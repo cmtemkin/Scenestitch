@@ -5,7 +5,7 @@ import { jobQueue } from './jobQueue';
 import { parseScript } from './scriptParser';
 import { EventEmitter } from 'events';
 import { db } from '../db';
-import { workflows, projectProviderConfigSchema, type ProjectProviderConfig } from '@shared/schema';
+import { workflows, projectProviderConfigSchema, type ProjectProviderConfig, type BrandKit, type PersonaKit } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import path from 'path';
 import fs from 'fs';
@@ -32,6 +32,8 @@ export interface ProjectWorkflow {
   referenceImageUrl?: string;
   voice?: string;
   audioModel?: string;
+  personaKitId?: number;
+  brandKitId?: number;
   musicAudioFilePath?: string;
   steps: WorkflowStep[];
   currentStep: number;
@@ -281,6 +283,51 @@ class WorkflowOrchestrator extends EventEmitter {
     console.log(`Processing audio timestamps for project ${workflow.scriptId}`);
   }
 
+  private composeKitPrompt(
+    customStylePrompt: string | undefined,
+    personaKit: PersonaKit | undefined,
+    brandKit: BrandKit | undefined
+  ): string | undefined {
+    const segments = [
+      customStylePrompt?.trim(),
+      personaKit?.tone ? `Persona tone: ${personaKit.tone}` : null,
+      personaKit?.promptDirectives?.trim(),
+      brandKit?.promptDirectives?.trim(),
+      brandKit?.captionPreset ? `Caption preset: ${brandKit.captionPreset}` : null,
+    ].filter((segment): segment is string => Boolean(segment && segment.length));
+
+    if (!segments.length) {
+      return undefined;
+    }
+    return segments.join("\n\n");
+  }
+
+  private toPersonaSnapshot(kit: PersonaKit) {
+    return {
+      id: kit.id,
+      name: kit.name,
+      defaultVoice: kit.defaultVoice,
+      defaultStyle: kit.defaultStyle,
+      tone: kit.tone,
+      humorLevel: kit.humorLevel,
+      hookStyle: kit.hookStyle,
+    };
+  }
+
+  private toBrandSnapshot(kit: BrandKit) {
+    return {
+      id: kit.id,
+      name: kit.name,
+      primaryColor: kit.primaryColor,
+      secondaryColor: kit.secondaryColor,
+      accentColor: kit.accentColor,
+      fontFamily: kit.fontFamily,
+      captionPreset: kit.captionPreset,
+      logoUrl: kit.logoUrl,
+      watermarkEnabled: kit.watermarkEnabled,
+    };
+  }
+
   async createProjectWorkflow(data: {
     title: string;
     content: string;
@@ -298,6 +345,8 @@ class WorkflowOrchestrator extends EventEmitter {
       absurdityLevel: number;
     };
     providerConfig?: ProjectProviderConfig;
+    personaKitId?: number;
+    brandKitId?: number;
   }): Promise<string> {
     // Get current admin model settings and preserve them for this project
     const adminModelSettings = getModelConfig();
@@ -305,6 +354,18 @@ class WorkflowOrchestrator extends EventEmitter {
     const providerConfig = parsedProviderConfig.success
       ? parsedProviderConfig.data
       : getDefaultProviderConfig();
+    const personaKit = typeof data.personaKitId === "number" ? await storage.getPersonaKit(data.personaKitId) : undefined;
+    const brandKit = typeof data.brandKitId === "number" ? await storage.getBrandKit(data.brandKitId) : undefined;
+    if (typeof data.personaKitId === "number" && !personaKit) {
+      throw new Error(`Persona kit ${data.personaKitId} not found`);
+    }
+    if (typeof data.brandKitId === "number" && !brandKit) {
+      throw new Error(`Brand kit ${data.brandKitId} not found`);
+    }
+
+    const effectiveStyle = data.style || personaKit?.defaultStyle || "cinematic";
+    const effectiveVoice = data.voice || personaKit?.defaultVoice || "alloy";
+    const effectiveCustomStylePrompt = this.composeKitPrompt(data.customStylePrompt, personaKit, brandKit);
     console.log(`Creating project with admin model settings:`, adminModelSettings);
     console.log(`Image size setting: ${adminModelSettings.image_size}, Quality setting: ${adminModelSettings.image_quality}`);
     
@@ -318,8 +379,8 @@ class WorkflowOrchestrator extends EventEmitter {
       content: data.content,
       title: data.title,
       description: null,
-      style: data.style,
-      customStylePrompt: data.customStylePrompt,
+      style: effectiveStyle,
+      customStylePrompt: effectiveCustomStylePrompt,
       maintainContinuity: data.maintainContinuity ?? true,
       referenceImageUrl: data.referenceImageUrl,
       status: 'draft',
@@ -327,6 +388,12 @@ class WorkflowOrchestrator extends EventEmitter {
       modelSettings: {
         ...adminModelSettings,
         providerConfig,
+        kits: {
+          personaKitId: personaKit?.id ?? null,
+          brandKitId: brandKit?.id ?? null,
+          personaSnapshot: personaKit ? this.toPersonaSnapshot(personaKit) : null,
+          brandSnapshot: brandKit ? this.toBrandSnapshot(brandKit) : null,
+        },
       },
       musicAudioFilePath: data.musicAudioFilePath,
       musicAudioAnalysisStatus: data.musicAudioFilePath ? 'pending' : null,
@@ -383,12 +450,14 @@ class WorkflowOrchestrator extends EventEmitter {
       scriptId: script.id,
       title: data.title,
       content: data.content,
-      style: data.style,
-      customStylePrompt: data.customStylePrompt,
+      style: effectiveStyle,
+      customStylePrompt: effectiveCustomStylePrompt,
       maintainContinuity: data.maintainContinuity ?? true,
       referenceImageUrl: data.referenceImageUrl,
-      voice: data.voice,
+      voice: effectiveVoice,
       audioModel: data.audioModel,
+      personaKitId: personaKit?.id,
+      brandKitId: brandKit?.id,
       musicAudioFilePath: data.musicAudioFilePath,
       steps: workflowSteps,
       currentStep: 1,
@@ -405,11 +474,11 @@ class WorkflowOrchestrator extends EventEmitter {
       scriptId: script.id,
       title: data.title,
       content: data.content,
-      style: data.style,
-      customStylePrompt: data.customStylePrompt,
+      style: effectiveStyle,
+      customStylePrompt: effectiveCustomStylePrompt,
       maintainContinuity: data.maintainContinuity ?? true,
       referenceImageUrl: data.referenceImageUrl,
-      voice: data.voice || 'alloy',
+      voice: effectiveVoice,
       audioModel: data.audioModel || 'gpt-4o-mini-tts',
       currentStep: 1,
       status: 'processing',
