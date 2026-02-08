@@ -615,6 +615,14 @@ export const createRenderSchema = z.object({
 
 export type CreateRenderRequest = z.infer<typeof createRenderSchema>;
 
+export const createShortRendersSchema = z.object({
+  projectId: z.number().int().positive(),
+  maxClips: z.number().int().min(1).max(10).default(3),
+  targetDurationSec: z.number().int().min(10).max(90).default(30),
+});
+
+export type CreateShortRendersRequest = z.infer<typeof createShortRendersSchema>;
+
 // Content intelligence schemas (hooks, comedy timing, repurpose)
 export const generateHookVariantsSchema = z.object({
   script: z.string().min(20),

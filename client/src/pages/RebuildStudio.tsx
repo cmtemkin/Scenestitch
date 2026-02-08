@@ -86,6 +86,10 @@ type ShortsResponse = {
   }>;
 };
 
+type ShortRenderQueueResponse = {
+  jobs: Array<{ jobId: string; clipNumber: number; sceneRange: [number, number] }>;
+};
+
 type ProviderReadinessResponse = {
   recommendation: "configured" | "fallback_recommended";
   readiness: {
@@ -284,6 +288,22 @@ const RebuildStudio = () => {
           targetDurationSec: 30,
         }),
       }),
+  });
+
+  const shortRenderBatchMutation = useMutation({
+    mutationFn: async () =>
+      apiRequest<ShortRenderQueueResponse>("/api/renders/shorts", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: resolvedProjectId,
+          maxClips: 3,
+          targetDurationSec: 30,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/renders", resolvedProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assets", resolvedProjectId] });
+    },
   });
 
   const providerSummary = useMemo(() => {
@@ -620,6 +640,13 @@ const RebuildStudio = () => {
               >
                 Repurpose to Shorts
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => shortRenderBatchMutation.mutate()}
+                disabled={shortRenderBatchMutation.isPending || !resolvedProjectId}
+              >
+                Queue Short Renders
+              </Button>
             </div>
 
             {!!hookMutation.data?.hooks?.length && (
@@ -651,6 +678,17 @@ const RebuildStudio = () => {
                 {repurposeMutation.data.clips.map((clip) => (
                   <p key={clip.clipNumber} className="text-sm text-muted-foreground">
                     Clip {clip.clipNumber} (Scenes {clip.sceneRange[0]}-{clip.sceneRange[1]}): {clip.hook}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {!!shortRenderBatchMutation.data?.jobs?.length && (
+              <div className="rounded-md border p-3">
+                <p className="mb-2 text-sm font-medium">Queued Short Render Jobs</p>
+                {shortRenderBatchMutation.data.jobs.map((job) => (
+                  <p key={job.jobId} className="text-sm text-muted-foreground">
+                    Clip {job.clipNumber} (Scenes {job.sceneRange[0]}-{job.sceneRange[1]}): {job.jobId}
                   </p>
                 ))}
               </div>

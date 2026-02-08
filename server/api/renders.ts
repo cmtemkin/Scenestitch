@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
-import { createRenderSchema, type VideoJob } from "@shared/schema";
+import { createRenderSchema, createShortRendersSchema, type VideoJob } from "@shared/schema";
 import { storage } from "../storage";
 import { renderQueue } from "../services/renderQueue";
 
@@ -100,6 +100,71 @@ export function registerRenderRoutes(app: Express) {
       console.error("Failed to start render:", error);
       return res.status(500).json({
         message: "Failed to start render",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.post("/api/renders/shorts", async (req: Request, res: Response) => {
+    try {
+      const data = createShortRendersSchema.parse(req.body);
+
+      const script = await storage.getScript(data.projectId);
+      if (!script) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const scenes = (await storage.getScenesByScriptId(data.projectId))
+        .filter((scene) => !!scene.imageUrl)
+        .sort((a, b) => a.sceneNumber - b.sceneNumber);
+
+      if (!scenes.length) {
+        return res.status(400).json({ message: "Project has no generated scenes to repurpose" });
+      }
+
+      if (!script.audioTTSId) {
+        return res.status(400).json({ message: "Project must have narration before creating short renders" });
+      }
+
+      const clipCount = Math.min(data.maxClips, scenes.length);
+      const chunkSize = Math.max(1, Math.ceil(scenes.length / clipCount));
+      const jobs: Array<{ jobId: string; clipNumber: number; sceneRange: [number, number] }> = [];
+
+      for (let index = 0; index < clipCount; index++) {
+        const chunk = scenes.slice(index * chunkSize, index * chunkSize + chunkSize);
+        if (!chunk.length) continue;
+
+        const startScene = chunk[0].sceneNumber;
+        const endScene = chunk[chunk.length - 1].sceneNumber;
+        const jobId = await renderQueue.enqueue(data.projectId, {
+          format: "portrait-9-16",
+          contentType: "tiktok",
+          includeCaptions: true,
+          resolution: "1080p",
+          quality: "high",
+          targetDurationSec: data.targetDurationSec,
+          sceneRange: [startScene, endScene],
+        });
+
+        jobs.push({
+          jobId,
+          clipNumber: index + 1,
+          sceneRange: [startScene, endScene],
+        });
+      }
+
+      return res.status(202).json({
+        message: "Short renders queued",
+        projectId: data.projectId,
+        jobs,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid short render request", errors: error.errors });
+      }
+      console.error("Failed to queue short renders:", error);
+      return res.status(500).json({
+        message: "Failed to queue short renders",
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }

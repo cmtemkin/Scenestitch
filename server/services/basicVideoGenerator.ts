@@ -47,8 +47,13 @@ export class BasicVideoGenerator {
       }
 
       const allScenes = await storage.getScenesByScriptId(projectId);
+      const sceneRange = parseSceneRange(settings.sceneRange);
       const scenes = allScenes
         .filter((scene) => !!scene.imageUrl)
+        .filter((scene) => {
+          if (!sceneRange) return true;
+          return scene.sceneNumber >= sceneRange.start && scene.sceneNumber <= sceneRange.end;
+        })
         .sort((a, b) => a.sceneNumber - b.sceneNumber);
 
       if (!scenes.length) {
@@ -267,4 +272,18 @@ function buildConcatManifest(imagePaths: string[], durations: number[]): string 
   const lastPath = imagePaths[imagePaths.length - 1].replace(/'/g, "'\\''");
   lines.push(`file '${lastPath}'`);
   return lines.join('\n');
+}
+
+function parseSceneRange(raw: unknown): { start: number; end: number } | null {
+  if (!Array.isArray(raw) || raw.length !== 2) {
+    return null;
+  }
+  const start = Number(raw[0]);
+  const end = Number(raw[1]);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return null;
+  }
+  const normalizedStart = Math.max(1, Math.floor(start));
+  const normalizedEnd = Math.max(normalizedStart, Math.floor(end));
+  return { start: normalizedStart, end: normalizedEnd };
 }
