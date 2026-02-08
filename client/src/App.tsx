@@ -13,6 +13,7 @@ import ProjectAlbum from "@/pages/ProjectAlbum";
 import QueuePage from "@/pages/QueuePage";
 import AudioPage from "@/pages/AudioPage";
 import Studio from "@/pages/Studio";
+import RebuildStudio from "@/pages/RebuildStudio";
 import Header from './components/Header';
 import MobileNavBar from './components/MobileNavBar';
 
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/library" component={PhotoLibrary} />
       <Route path="/library/:id" component={ProjectAlbum} />
       <Route path="/studio" component={Studio} />
+      <Route path="/rebuild" component={RebuildStudio} />
       <Route path="/queue" component={QueuePage} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Settings, Image, FolderClosed, Menu, X, Clock, Plus, Zap, Video } from 'lucide-react';
+import { Settings, Image, FolderClosed, Menu, X, Clock, Plus, Zap, Video, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +43,12 @@ const Header = () => {
               <div className={`nav-item ${location.startsWith('/projects') || location.startsWith('/project') ? 'active' : ''}`}>
                 <FolderClosed className="h-4 w-4 mr-2" />
                 <span>Projects</span>
+              </div>
+            </Link>
+            <Link href="/rebuild">
+              <div className={`nav-item ${location.startsWith('/rebuild') ? 'active' : ''}`}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                <span>Rebuild</span>
               </div>
             </Link>
             <Link href="/library">
@@ -105,6 +111,14 @@ const Header = () => {
                   <div className={`flex items-center gap-3 w-full py-4 px-3 rounded-lg transition-colors ${location.startsWith('/projects') || location.startsWith('/project') ? 'text-primary font-medium bg-primary/10' : 'hover:bg-muted/50'}`}>
                     <FolderClosed className="h-5 w-5 flex-shrink-0" />
                     <span className="text-base">Projects</span>
+                  </div>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/rebuild" onClick={() => setMobileMenuOpen(false)}>
+                  <div className={`flex items-center gap-3 w-full py-4 px-3 rounded-lg transition-colors ${location.startsWith('/rebuild') ? 'text-primary font-medium bg-primary/10' : 'hover:bg-muted/50'}`}>
+                    <Sparkles className="h-5 w-5 flex-shrink-0" />
+                    <span className="text-base">Rebuild</span>
                   </div>
                 </Link>
               </DropdownMenuItem>

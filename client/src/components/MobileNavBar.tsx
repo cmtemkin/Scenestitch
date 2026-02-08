@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Plus, FolderClosed, Image, Clock, Settings } from 'lucide-react';
+import { Plus, FolderClosed, Image, Clock, Sparkles } from 'lucide-react';
 
 const MobileNavBar = () => {
   const [location] = useLocation();
@@ -9,7 +9,7 @@ const MobileNavBar = () => {
     { href: '/projects', icon: FolderClosed, label: 'Projects', isActive: location.startsWith('/projects') || location.startsWith('/project') },
     { href: '/library', icon: Image, label: 'Gallery', isActive: location.startsWith('/library') },
     { href: '/queue', icon: Clock, label: 'Queue', isActive: location.startsWith('/queue') },
-    { href: '/admin', icon: Settings, label: 'Settings', isActive: location.startsWith('/admin') },
+    { href: '/rebuild', icon: Sparkles, label: 'Rebuild', isActive: location.startsWith('/rebuild') },
   ];
 
   return (

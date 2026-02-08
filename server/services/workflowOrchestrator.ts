@@ -5,10 +5,12 @@ import { jobQueue } from './jobQueue';
 import { parseScript } from './scriptParser';
 import { EventEmitter } from 'events';
 import { db } from '../db';
-import { workflows } from '@shared/schema';
+import { workflows, projectProviderConfigSchema, type ProjectProviderConfig } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import path from 'path';
 import fs from 'fs';
+import { getDefaultProviderConfig } from '../providers/registry';
+import { generateNarrationWithProvider } from '../providers/engine';
 
 export interface WorkflowStep {
   id: string;
@@ -295,9 +297,14 @@ class WorkflowOrchestrator extends EventEmitter {
       comedyLevel: number;
       absurdityLevel: number;
     };
+    providerConfig?: ProjectProviderConfig;
   }): Promise<string> {
     // Get current admin model settings and preserve them for this project
     const adminModelSettings = getModelConfig();
+    const parsedProviderConfig = projectProviderConfigSchema.safeParse(data.providerConfig);
+    const providerConfig = parsedProviderConfig.success
+      ? parsedProviderConfig.data
+      : getDefaultProviderConfig();
     console.log(`Creating project with admin model settings:`, adminModelSettings);
     console.log(`Image size setting: ${adminModelSettings.image_size}, Quality setting: ${adminModelSettings.image_quality}`);
     
@@ -317,7 +324,10 @@ class WorkflowOrchestrator extends EventEmitter {
       referenceImageUrl: data.referenceImageUrl,
       status: 'draft',
       projectType: projectType as any,
-      modelSettings: adminModelSettings,
+      modelSettings: {
+        ...adminModelSettings,
+        providerConfig,
+      },
       musicAudioFilePath: data.musicAudioFilePath,
       musicAudioAnalysisStatus: data.musicAudioFilePath ? 'pending' : null,
       animationSettings: isAnimation ? data.animationSettings : null,
@@ -512,6 +522,7 @@ class WorkflowOrchestrator extends EventEmitter {
       if (!isMusicVideo && !isAnimation) {
         await this.executeStep(workflow, 'generate_audio', async () => {
         console.log(`Generating audio for workflow ${workflowId}`);
+        const currentScript = await storage.getScript(workflow.scriptId);
         
         // Create audio record in database
         const audioItem = await storage.createAudioTTS({
@@ -524,12 +535,16 @@ class WorkflowOrchestrator extends EventEmitter {
         // Update status to generating
         await storage.updateAudioTTS(audioItem.id, { status: "generating" });
 
-        // Generate TTS audio
-        const { generateTTS } = await import('./ttsService');
-        const result = await generateTTS({
+        const providerConfig = projectProviderConfigSchema.parse(
+          ((currentScript?.modelSettings as any)?.providerConfig) || getDefaultProviderConfig()
+        );
+
+        // Generate TTS audio using provider engine
+        const result = await generateNarrationWithProvider(providerConfig, {
           model: (workflow.audioModel as any) || 'gpt-4o-mini-tts',
           voice: (workflow.voice as any) || 'alloy',
-          input: workflow.content,
+          text: workflow.content,
+          elevenLabsVoiceId: (currentScript as any)?.characterVoices?.narrator?.voiceId,
         });
 
         // Use the duration from the TTS result
@@ -666,11 +681,18 @@ class WorkflowOrchestrator extends EventEmitter {
         
         // Get and apply admin model settings before scene generation
         const adminModelSettings = getModelConfig();
+        const currentModelSettings =
+          currentScript?.modelSettings && typeof currentScript.modelSettings === 'object'
+            ? currentScript.modelSettings as Record<string, unknown>
+            : {};
         console.log(`[WORKFLOW] Applying admin model settings:`, adminModelSettings);
         
         // Update the script with admin model settings before generating scenes
         await storage.updateScript(workflow.scriptId, {
-          modelSettings: adminModelSettings
+          modelSettings: {
+            ...adminModelSettings,
+            providerConfig: currentModelSettings.providerConfig || getDefaultProviderConfig(),
+          }
         });
         
         // Check if we have pre-computed scene timings from audio analysis

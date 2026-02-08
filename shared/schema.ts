@@ -581,6 +581,67 @@ export const generateVideoSchema = z.object({
 
 export type GenerateVideoRequest = z.infer<typeof generateVideoSchema>;
 
+// Provider-agnostic configuration schemas (Rebuild v1)
+export const imageProviderSchema = z.enum(["openai", "nanabanana-pro"]);
+export const ttsProviderSchema = z.enum(["openai", "elevenlabs"]);
+export const imageToVideoProviderSchema = z.enum(["sora-2", "veo-3.1"]);
+
+export const projectProviderConfigSchema = z.object({
+  image: imageProviderSchema.default("openai"),
+  tts: ttsProviderSchema.default("openai"),
+  imageToVideo: imageToVideoProviderSchema.default("sora-2"),
+  enableFallbacks: z.boolean().default(true),
+});
+
+export const updateProjectProviderConfigSchema = z.object({
+  projectId: z.number().int().positive(),
+  providers: projectProviderConfigSchema,
+});
+
+export type ProjectProviderConfig = z.infer<typeof projectProviderConfigSchema>;
+export type UpdateProjectProviderConfigRequest = z.infer<typeof updateProjectProviderConfigSchema>;
+
+export const createRenderSchema = z.object({
+  projectId: z.number().int().positive(),
+  format: z.enum(["landscape-16-9", "portrait-9-16"]).default("landscape-16-9"),
+  contentType: z.enum(["explainer", "tiktok"]).default("explainer"),
+  includeCaptions: z.boolean().default(true),
+  settings: z.object({
+    resolution: z.enum(["720p", "1080p", "1440p"]).default("1080p"),
+    fps: z.number().min(24).max(60).default(30),
+    quality: z.enum(["low", "medium", "high"]).default("high"),
+  }).optional(),
+});
+
+export type CreateRenderRequest = z.infer<typeof createRenderSchema>;
+
+// Content intelligence schemas (hooks, comedy timing, repurpose)
+export const generateHookVariantsSchema = z.object({
+  script: z.string().min(20),
+  style: z.enum(["explainer", "tiktok", "comedy"]).default("explainer"),
+  count: z.number().int().min(1).max(5).default(3),
+});
+
+export const generateComedyTimingSchema = z.object({
+  scenes: z.array(
+    z.object({
+      sceneNumber: z.number().int().positive(),
+      text: z.string().min(1),
+      estimatedDurationSec: z.number().positive().optional(),
+    })
+  ).min(1),
+});
+
+export const repurposeShortsSchema = z.object({
+  projectId: z.number().int().positive(),
+  maxClips: z.number().int().min(1).max(10).default(3),
+  targetDurationSec: z.number().int().min(10).max(90).default(30),
+});
+
+export type GenerateHookVariantsRequest = z.infer<typeof generateHookVariantsSchema>;
+export type GenerateComedyTimingRequest = z.infer<typeof generateComedyTimingSchema>;
+export type RepurposeShortsRequest = z.infer<typeof repurposeShortsSchema>;
+
 // ===== ANIMATION MODE TABLES =====
 
 // Animation Characters - user-defined characters for dialogue builder

@@ -37,6 +37,10 @@ import { v4 as uuidv4 } from "uuid";
 import { setupSwagger } from "./swagger";
 import { registerAutomationRoutes } from "./api/automation";
 import { registerModelManagementRoutes } from "./api/modelManagement";
+import { registerProviderRoutes } from "./api/providers";
+import { registerRenderRoutes } from "./api/renders";
+import { registerAssetRoutes } from "./api/assets";
+import { registerIntelligenceRoutes } from "./api/intelligence";
 import { WebSocketServer, WebSocket } from 'ws';
 import { jobQueue } from './services/jobQueue';
 import { objectStorage, ObjectNotFoundError } from './objectStorage';
@@ -160,6 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register model management routes for easy GPT-5/legacy switching
   registerModelManagementRoutes(app);
+
+  // Register rebuild-phase API routes
+  registerProviderRoutes(app);
+  registerRenderRoutes(app);
+  registerAssetRoutes(app);
+  registerIntelligenceRoutes(app);
   
   // Health check endpoint for storage status
   app.get("/api/health/storage", async (req: Request, res: Response) => {
@@ -3071,7 +3081,20 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
   // Create a new project workflow (unified journey)
   app.post("/api/workflows/create-project", async (req: Request, res: Response) => {
     try {
-      const { title, content, style, customStylePrompt, maintainContinuity, referenceImageUrl, voice, audioModel, projectType, musicAudioFilePath, animationSettings } = req.body;
+      const {
+        title,
+        content,
+        style,
+        customStylePrompt,
+        maintainContinuity,
+        referenceImageUrl,
+        voice,
+        audioModel,
+        projectType,
+        musicAudioFilePath,
+        animationSettings,
+        providers,
+      } = req.body;
       
       if (!title || !content || !style) {
         return res.status(400).json({ message: "Title, content, and style are required" });
@@ -3104,11 +3127,15 @@ Only change: pose, clothing (if specified), background, lighting, and camera ang
         audioModel: audioModel || 'gpt-4o-mini-tts',
         projectType: projectType || 'video',
         musicAudioFilePath: isMusicVideo ? musicAudioFilePath : undefined,
-        animationSettings: isAnimation ? animationSettings : undefined
+        animationSettings: isAnimation ? animationSettings : undefined,
+        providerConfig: providers,
       });
+
+      const workflow = await workflowOrchestrator.getWorkflow(workflowId);
       
       return res.status(200).json({ 
         workflowId, 
+        scriptId: workflow?.scriptId,
         message: "Project workflow started successfully" 
       });
     } catch (err) {
